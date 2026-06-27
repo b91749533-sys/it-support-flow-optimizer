@@ -1,0 +1,173 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Role {
+  id          String  @id
+  name        String  @unique
+  description String?
+  users       User[]
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  users       User[]
+  tickets     Ticket[]
+}
+
+model Category {
+  id          String   @id
+  name        String   @unique
+  description String?
+  tickets     Ticket[]
+}
+
+model Priority {
+  id          String   @id
+  name        String   @unique
+  weight      Int      @default(0) // Higher weight means higher urgency
+  color       String   @default("#6b7280") // hex color
+  tickets     Ticket[]
+}
+
+enum TicketStatus {
+  NEW
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_USER
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  roleId         String
+  role           Role         @relation(fields: [roleId], references: [id])
+  departmentId   String?
+  department     Department?  @relation(fields: [departmentId], references: [id])
+  
+  // Relations
+  createdTickets  Ticket[]     @relation("CreatedTickets")
+  assignedTickets Ticket[]     @relation("AssignedTickets")
+  comments        Comment[]
+  attachments     Attachment[]
+  activities      Activity[]
+  notifications   Notification[]
+  reports         Report[]
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Ticket {
+  id            String       @id @default(uuid())
+  title         String
+  description   String
+  status        TicketStatus @default(NEW)
+  priorityId    String
+  priority      Priority     @relation(fields: [priorityId], references: [id])
+  categoryId    String
+  category      Category     @relation(fields: [categoryId], references: [id])
+  
+  // Users
+  createdById   String
+  createdBy     User         @relation("CreatedTickets", fields: [createdById], references: [id], onDelete: Cascade)
+  assignedToId  String?
+  assignedTo    User?        @relation("AssignedTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  
+  // Department
+  departmentId  String
+  department    Department   @relation(fields: [departmentId], references: [id])
+
+  // Timestamps / Metrics
+  dueDate       DateTime?
+  resolvedAt    DateTime?
+  closedAt      DateTime?
+  lastResponseAt DateTime?  // Used for measuring response times
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // SLA Metrics
+  slaResponseLimit  DateTime? // Target time to respond
+  slaResolutionLimit DateTime? // Target time to resolve
+  slaResponseBreached Boolean   @default(false)
+  slaResolutionBreached Boolean @default(false)
+
+  // Relations
+  comments      Comment[]
+  attachments   Attachment[]
+  activities    Activity[]
+  notifications Notification[]
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content    String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  ticketId     String
+  ticket       Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  filename     String
+  filepath     String
+  filetype     String
+  filesize     Int
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g. "STATUS_CHANGE", "ASSIGNED", "COMMENT_ADDED", "TICKET_CREATED", "SLA_BREACH"
+  details   String   // JSON string or description text of what changed
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   // e.g., "SLA_BREACH", "ESCALATION", "ASSIGNED", "NEW_COMMENT"
+  isRead    Boolean  @default(false)
+  ticketId  String?
+  ticket    Ticket?  @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  title       String
+  type        String   // "AGENT_PERFORMANCE", "MONTHLY_TICKETS", "SLA_COMPLIANCE", "DEPARTMENT_REPORT"
+  format      String   // "PDF", "EXCEL", "CSV"
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  filepath    String?  // Can point to download endpoint or disk path
+  status      String   // "PENDING", "COMPLETED", "FAILED"
+  parameters  String?  // JSON string containing filters/parameters
+  createdAt   DateTime @default(now())
+}

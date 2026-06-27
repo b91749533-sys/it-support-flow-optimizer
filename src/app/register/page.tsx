@@ -1,0 +1,254 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Lock, Mail, User, ShieldCheck, RefreshCw, ArrowLeft, Building } from 'lucide-react';
+
+interface Department {
+  id: string;
+  name: string;
+}
+
+export default function RegisterPage() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [roleId, setRoleId] = useState('AGENT');
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const router = useRouter();
+
+  useEffect(() => {
+    async function loadMeta() {
+      try {
+        const res = await fetch('/api/meta');
+        const data = await res.json();
+        if (data.departments) {
+          setDepartments(data.departments);
+        }
+      } catch (err) {
+        console.error('Failed to load departments metadata:', err);
+      }
+    }
+    loadMeta();
+  }, []);
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          password,
+          departmentId: departmentId || undefined,
+          roleId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Registration failed');
+      }
+
+      setSuccess('Registration successful! Redirecting to login...');
+      setTimeout(() => {
+        router.push('/login');
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create account.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#0b0f19] px-4 overflow-hidden relative">
+      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-purple-900/10 blur-[120px]" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-900/10 blur-[120px]" />
+
+      <div className="w-full max-w-md animate-fade-in relative z-10">
+        <div className="text-center mb-6">
+          <div className="inline-flex p-3 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20 mb-3 shadow-inner">
+            <ShieldCheck className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-white">
+            IT Support Flow Optimizer
+          </h1>
+        </div>
+
+        <div className="bg-[#151c2e]/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
+          <div className="flex items-center gap-2 mb-6">
+            <Link href="/login" className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-all">
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <h2 className="text-lg font-semibold text-white">Create User Account</h2>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 font-medium">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-xs text-green-400 font-medium">
+              {success}
+            </div>
+          )}
+
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="firstName" className="block text-xs font-semibold text-slate-400 mb-1.5">
+                  First Name
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                    <User className="w-4 h-4" />
+                  </span>
+                  <input
+                    id="firstName"
+                    type="text"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="John"
+                    className="w-full text-sm pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-800 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 text-white placeholder-slate-500 transition-all outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="lastName" className="block text-xs font-semibold text-slate-400 mb-1.5">
+                  Last Name
+                </label>
+                <input
+                  id="lastName"
+                  type="text"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Smith"
+                  className="w-full text-sm px-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-800 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 text-white placeholder-slate-500 transition-all outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="email" className="block text-xs font-semibold text-slate-400 mb-1.5">
+                Work Email Address
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                  <Mail className="w-4 h-4" />
+                </span>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="john.smith@company.com"
+                  className="w-full text-sm pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-800 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 text-white placeholder-slate-500 transition-all outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-xs font-semibold text-slate-400 mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                  <Lock className="w-4 h-4" />
+                </span>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full text-sm pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-800 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 text-white placeholder-slate-500 transition-all outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="role" className="block text-xs font-semibold text-slate-400 mb-1.5">
+                  Initial Role Selection
+                </label>
+                <select
+                  id="role"
+                  value={roleId}
+                  onChange={(e) => setRoleId(e.target.value)}
+                  className="w-full text-sm px-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-800 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 text-white transition-all outline-none"
+                >
+                  <option value="AGENT">Support Agent</option>
+                  <option value="MANAGER">Team Manager</option>
+                  <option value="ADMIN">System Admin</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="department" className="block text-xs font-semibold text-slate-400 mb-1.5">
+                  Associated Dept.
+                </label>
+                <select
+                  id="department"
+                  value={departmentId}
+                  onChange={(e) => setDepartmentId(e.target.value)}
+                  className="w-full text-sm px-4 py-2.5 rounded-xl bg-slate-900/80 border border-slate-800 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 text-white transition-all outline-none"
+                >
+                  <option value="">Select Department</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold tracking-wide shadow-lg shadow-purple-500/10 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Creating Account...
+                </>
+              ) : (
+                'Register Account'
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Citation */}
+        <div className="text-center mt-6">
+          <p className="text-[10px] text-slate-500">
+            made by <span className="font-semibold text-slate-400">Youssef Manssouri</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
